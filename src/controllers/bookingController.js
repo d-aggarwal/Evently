@@ -5,12 +5,27 @@ class BookingController {
   async createBooking(req, res) {
     try {
       const { eventId, quantity } = req.body;
-      const booking = await bookingService.createBooking(req.user.id, eventId, quantity);
+      const result = await bookingService.createBooking(req.user.id, eventId, quantity);
       
-      res.status(201).json({
-        message: 'Booking created successfully',
-        data: { booking }
-      });
+      if (result.type === 'success') {
+        res.status(201).json({
+          message: result.message,
+          data: { booking: result.booking }
+        });
+      } else if (result.type === 'partial') {
+        res.status(201).json({
+          message: result.message,
+          data: { 
+            booking: result.booking,
+            waitlistEntry: result.waitlistEntry
+          }
+        });
+      } else if (result.type === 'waitlist') {
+        res.status(200).json({
+          message: result.message,
+          data: { waitlistEntry: result.waitlistEntry }
+        });
+      }
     } catch (error) {
       res.status(400).json({
         error: error.message

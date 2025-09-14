@@ -15,11 +15,92 @@ class BookingService {
 
   // Enhanced create booking with queue support
   async createBooking(userId, eventId, quantity) {
-    // Disable queue processing temporarily 
-    const useQueue = false; // Force disable queue
-    
-    // Process booking directly without queue
-    return await this.processBookingJobWithStrongLock(userId, eventId, quantity);
+    try {
+      const result = await sequelize.transaction({
+        isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE
+      }, async (transaction) => {
+        
+        const event = await Event.findByPk(eventId, {
+          lock: transaction.LOCK.UPDATE,
+          transaction
+        });
+
+        if (!event) {
+          throw new Error('Event not found');
+        }
+
+        if (event.status !== 'published') {
+          throw new Error('Event is not available for booking');
+        }
+
+        const availableCapacity = event.availableCapacity;
+        
+        if (availableCapacity === 0) {
+          const waitlistService = require('./waitlistService');
+          const waitlistEntry = await waitlistService.addToWaitlist(userId, eventId, quantity);
+          return {
+            type: 'waitlist',
+            message: `Event is sold out. Added ${quantity} tickets to waitlist.`,
+            waitlistEntry: waitlistEntry
+          };
+        }
+
+        if (availableCapacity < quantity) {
+          const bookableQuantity = availableCapacity;
+          const waitlistQuantity = quantity - availableCapacity;
+
+          const totalAmount = parseFloat(event.price) * bookableQuantity;
+
+          const booking = await Booking.create({
+            userId,
+            eventId,
+            quantity: bookableQuantity,
+            totalAmount,
+            status: 'confirmed',
+            bookingReference: this.generateBookingReference()
+          }, { transaction });
+
+          await event.update({
+            availableCapacity: 0
+          }, { transaction });
+
+          const waitlistService = require('./waitlistService');
+          const waitlistEntry = await waitlistService.addToWaitlist(userId, eventId, waitlistQuantity);
+
+          return {
+            type: 'partial',
+            message: `Booked ${bookableQuantity} tickets. Remaining ${waitlistQuantity} tickets added to waitlist.`,
+            booking: booking,
+            waitlistEntry: waitlistEntry
+          };
+        }
+
+        const totalAmount = parseFloat(event.price) * quantity;
+
+        const booking = await Booking.create({
+          userId,
+          eventId,
+          quantity,
+          totalAmount,
+          status: 'confirmed',
+          bookingReference: this.generateBookingReference()
+        }, { transaction });
+
+        await event.update({
+          availableCapacity: event.availableCapacity - quantity
+        }, { transaction });
+
+        return {
+          type: 'success',
+          message: `Successfully booked ${quantity} tickets.`,
+          booking: booking
+        };
+      });
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Check if there's concurrent load on this event

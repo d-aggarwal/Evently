@@ -169,15 +169,32 @@ class WaitlistService {
 
   // Get user's all waitlist entries
   async getUserWaitlists(userId) {
-    return await Waitlist.findAll({
-      where: { userId, status: 'active' },
-      include: [{
-        model: Event,
-        as: 'event',
-        attributes: ['id', 'name', 'venue', 'dateTime', 'availableCapacity']
-      }],
-      order: [['createdAt', 'DESC']]
-    });
+    try {
+      const waitlists = await Waitlist.findAll({
+        where: { 
+          userId, 
+          status: 'active' 
+        },
+        include: [{
+          model: Event,
+          as: 'event',
+          attributes: ['id', 'name', 'venue', 'dateTime', 'availableCapacity', 'totalCapacity']
+        }],
+        order: [['createdAt', 'DESC']]
+      });
+
+      return waitlists.map(waitlist => ({
+        id: waitlist.id,
+        position: waitlist.position,
+        quantity: waitlist.quantity,
+        status: waitlist.status,
+        createdAt: waitlist.createdAt,
+        event: waitlist.event
+      }));
+    } catch (error) {
+      console.error('Error fetching user waitlists:', error);
+      throw error;
+    }
   }
 
   // Admin: Get event waitlist

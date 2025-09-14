@@ -1,99 +1,137 @@
 # Evently Backend
 
-A scalable event booking platform backend built with Node.js, Express, PostgreSQL, and Redis.
+A scalable event booking platform backend that handles concurrent ticket bookings, prevents overselling, and provides analytics for event organizers.
 
 ## Features
 
-- User Authentication with JWT
-- Event Management System
-- Concurrent Booking System with Race Condition Prevention
-- Queue-based Processing for High Load
-- Waitlist System
-- Real-time Analytics Dashboard
-- Horizontal Scaling Support
-- Production-ready Configuration
+- User authentication and event browsing
+- Concurrent booking system with race condition prevention
+- Waitlist management for sold-out events
+- Admin dashboard with booking analytics
+- Real-time capacity tracking
 
 ## Tech Stack
 
-- Node.js & Express
-- PostgreSQL with Sequelize ORM
-- Redis for Caching & Queue
-- Bull for Job Processing
-- PM2 for Process Management
-- JWT for Authentication
+- Node.js + Express
+- PostgreSQL + Sequelize ORM
+- Redis for caching and locking
+- JWT authentication
+- Bull queue for background jobs
 
-## Prerequisites
+## Setup
 
-- Node.js >= 18
-- PostgreSQL >= 13
-- Redis >= 6
-- PM2 (for clustering)
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/YOUR_USERNAME/evently-backend.git
-cd evently-backend
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
+2. Set up environment variables in `.env`:
+```
+NODE_ENV=development
+PORT=3000
+DB_HOST=localhost
+DB_NAME=evently
+JWT_SECRET=your_secret_key
+ADMIN_CREATION_TOKEN=your_admin_token
 ```
 
-4. Run database migrations:
+3. Run database migrations:
 ```bash
 npm run db:migrate
 ```
 
-## Running the Application
-
-### Development
+4. Start the server:
 ```bash
 npm run dev
 ```
 
-### Production with PM2
-```bash
-npm run cluster:start
-```
-
-## API Documentation
+## API Endpoints
 
 ### Authentication
-- POST /api/auth/register - User registration
-- POST /api/auth/login - User login
-- GET /api/auth/profile - Get user profile
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/create-admin` - Create admin (requires admin token)
 
 ### Events
-- GET /api/events - List all events
-- POST /api/events - Create event (Admin)
-- GET /api/events/:id - Get event details
-- PUT /api/events/:id - Update event (Admin)
-- DELETE /api/events/:id - Delete event (Admin)
+- `GET /api/events` - List all events
+- `POST /api/events` - Create event (admin only)
+- `GET /api/events/:id` - Get event details
+- `PUT /api/events/:id` - Update event (admin only)
+- `DELETE /api/events/:id` - Delete event (admin only)
 
 ### Bookings
-- POST /api/bookings - Create booking
-- GET /api/bookings - List user's bookings
-- GET /api/bookings/:id - Get booking details
-- DELETE /api/bookings/:id - Cancel booking
+- `POST /api/bookings` - Create booking
+- `GET /api/bookings` - Get user's bookings
+- `DELETE /api/bookings/:id` - Cancel booking
+
+### Waitlist
+- `POST /api/waitlist` - Join waitlist
+- `GET /api/waitlist/position/:eventId` - Get waitlist position
+- `DELETE /api/waitlist/:eventId` - Leave waitlist
 
 ### Analytics (Admin)
-- GET /api/analytics/overview - Dashboard overview
-- GET /api/analytics/events - Event analytics
-- GET /api/analytics/revenue - Revenue analytics
+- `GET /api/analytics/overview` - Dashboard overview
+- `GET /api/analytics/revenue` - Revenue analytics
+- `GET /api/analytics/events` - Event performance
 
-## License
+## Design Decisions
 
-MIT
+### Concurrency Handling
+Used database transactions with row-level locking to prevent race conditions during booking. This ensures no overselling even with simultaneous requests.
 
-## Author
+### Database Schema
+- Users table with role-based access (user/admin)
+- Events table with capacity tracking
+- Bookings table with reference generation
+- Waitlist table with position management
 
-YOUR_NAME
+### Scalability Approach
+- Connection pooling for database efficiency
+- Redis for distributed locking and session management
+- Queue-based processing for high-load scenarios
+- Optimized database indexes for common queries
+
+### Creative Features
+- Automatic waitlist processing when tickets become available
+- Real-time capacity updates with rollback on cancellation
+- Comprehensive analytics dashboard for admins
+- Booking reference system for easy tracking
+
+## Database Schema
+
+```
+Users
+- id (UUID)
+- email (unique)
+- firstName, lastName
+- passwordHash
+- role (user/admin)
+
+Events
+- id (UUID)
+- name, venue, dateTime
+- totalCapacity, availableCapacity
+- price, category, status
+- createdBy (foreign key)
+
+Bookings
+- id (UUID)
+- bookingReference (unique)
+- userId, eventId (foreign keys)
+- quantity, totalAmount
+- status (confirmed/cancelled)
+
+Waitlist
+- id (UUID)
+- userId, eventId (foreign keys)
+- position, quantity
+- status (active/notified/converted)
+```
+
+## Error Handling
+
+The API returns consistent error responses:
+```json
+{
+  "error": "Error message",
+  "details": "Additional information"
