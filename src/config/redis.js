@@ -11,31 +11,47 @@ class RedisClient {
       return this.client;
     }
 
-    if (process.env.NODE_ENV === 'production') {
-      // Upstash Redis configuration
-      this.client = new Redis(process.env.UPSTASH_REDIS_URL, {
-        tls: { rejectUnauthorized: false },
-        token: process.env.UPSTASH_REDIS_TOKEN,
-        maxRetriesPerRequest: 5,
-        retryStrategy: (times) => Math.min(times * 50, 2000)
+    // Force TCP connection
+    const redisConfig = {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: 5,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      reconnectOnError: (err) => {
+        const targetError = 'READONLY';
+        if (err.message.includes(targetError)) {
+          return true;
+        }
+        return false;
+      }
+    };
+
+    console.log('Connecting to Redis at:', `${redisConfig.host}:${redisConfig.port}`);
+
+    try {
+      this.client = new Redis(redisConfig);
+      
+      this.client.on('connect', () => {
+        console.log('✅ Redis connected successfully');
       });
-    } else {
-      // Local Redis configuration
-      this.client = new Redis({
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-        password: process.env.REDIS_PASSWORD,
-        maxRetriesPerRequest: 5
+
+      this.client.on('error', (error) => {
+        console.error('❌ Redis Error:', {
+          message: error.message,
+          code: error.code,
+          syscall: error.syscall,
+          address: error.address
+        });
       });
+
+    } catch (error) {
+      console.error('❌ Redis Connection Error:', error);
+      throw error;
     }
-
-    this.client.on('error', (error) => {
-      console.error('Redis Error:', error);
-    });
-
-    this.client.on('connect', () => {
-      console.log('Redis connected successfully');
-    });
 
     return this.client;
   }
