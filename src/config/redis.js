@@ -11,40 +11,28 @@ class RedisClient {
       return this.client;
     }
 
-    // Force TCP connection
-    const redisConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD,
-      maxRetriesPerRequest: 5,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      reconnectOnError: (err) => {
-        const targetError = 'READONLY';
-        if (err.message.includes(targetError)) {
-          return true;
-        }
-        return false;
-      }
-    };
-
-    console.log('Connecting to Redis at:', `${redisConfig.host}:${redisConfig.port}`);
+    // Use Upstash URL for both environments
+    const redisUrl = process.env.UPSTASH_REDIS_URL;
+    
+    if (!redisUrl) {
+      throw new Error('UPSTASH_REDIS_URL is required');
+    }
 
     try {
-      this.client = new Redis(redisConfig);
-      
+      this.client = new Redis(redisUrl, {
+        tls: { rejectUnauthorized: false },
+        maxRetriesPerRequest: 5,
+        retryStrategy: (times) => Math.min(times * 50, 2000)
+      });
+
       this.client.on('connect', () => {
-        console.log('✅ Redis connected successfully');
+        console.log('✅ Connected to Upstash Redis');
       });
 
       this.client.on('error', (error) => {
         console.error('❌ Redis Error:', {
           message: error.message,
-          code: error.code,
-          syscall: error.syscall,
-          address: error.address
+          code: error.code
         });
       });
 
