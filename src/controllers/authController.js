@@ -62,13 +62,14 @@ class AuthController {
     }
   }
 
+  // Admin creation with secure token
   async createAdmin(req, res) {
     try {
-      // Only allow in development environment
-      if (process.env.NODE_ENV !== 'development') {
-        return res.status(403).json({
-          error: 'Admin creation only allowed in development environment'
-        });
+      const { email, firstName, lastName, password, confirmPassword, adminToken } = req.body;
+
+      // Check admin creation token instead of NODE_ENV
+      if (adminToken !== process.env.ADMIN_CREATION_TOKEN) {
+        throw new Error('Invalid admin creation token');
       }
 
       // Create admin user with role override

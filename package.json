@@ -19,7 +19,8 @@
     "test:cluster": "node -e \"console.log('Testing cluster...'); [3000,3001,3002,3003].forEach(port => { require('http').get('http://localhost:'+port+'/api/health', res => console.log('Port', port, 'Status:', res.statusCode)).on('error', () => console.log('Port', port, 'OFFLINE')); });\"",
     "build": "echo 'Build completed'",
     "start:production": "NODE_ENV=production node src/app.js",
-    "deploy": "npm run db:migrate && npm run start:production"
+    "deploy": "npm run db:migrate && npm run start:production",
+    "postinstall": "npx sequelize-cli db:migrate"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

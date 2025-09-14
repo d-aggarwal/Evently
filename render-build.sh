@@ -4,10 +4,10 @@ echo "🚀 Starting Render build process..."
 
 # Install dependencies
 echo "📦 Installing dependencies..."
-npm ci
+npm install
 
-# Run database migrations
+# Run migrations with production config
 echo "🗄️ Running database migrations..."
-npm run db:migrate
+NODE_ENV=production npx sequelize-cli db:migrate
 
 echo "✅ Build completed successfully!"
