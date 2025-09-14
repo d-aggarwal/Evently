@@ -4,46 +4,53 @@ const { Op } = require('sequelize');
 class EventService {
   // Get all published events for users
   async getAllEvents(filters = {}) {
-    const { search, category, page = 1, limit = 10 } = filters;
-    const offset = (page - 1) * limit;
+    try {
+      const { search, category, page = 1, limit = 10 } = filters;
+      const offset = (page - 1) * limit;
 
-    const whereClause = {
-      status: 'published',
-      dateTime: { [Op.gte]: new Date() }
-    };
+      console.log('🔍 Fetching events with filters:', filters);
 
-    if (search) {
-      whereClause[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { venue: { [Op.iLike]: `%${search}%` } }
-      ];
-    }
+      const whereClause = {
+        status: 'published',  // Only published events
+        dateTime: {
+          [Op.gte]: new Date()  // Future events only
+        }
+      };
 
-    if (category) {
-      whereClause.category = category;
-    }
-
-    const { count, rows } = await Event.findAndCountAll({
-      where: whereClause,
-      include: [{
-        model: User,
-        as: 'creator',
-        attributes: ['firstName', 'lastName']
-      }],
-      order: [['dateTime', 'ASC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-
-    return {
-      events: rows,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(count / limit),
-        totalEvents: count,
-        hasNextPage: page < Math.ceil(count / limit)
+      if (search) {
+        whereClause[Op.or] = [
+          { name: { [Op.iLike]: `%${search}%` } },
+          { description: { [Op.iLike]: `%${search}%` } }
+        ];
       }
-    };
+
+      if (category) {
+        whereClause.category = category;
+      }
+
+      const { count, rows } = await Event.findAndCountAll({
+        where: whereClause,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        order: [['dateTime', 'ASC']],
+        attributes: ['id', 'name', 'description', 'venue', 'dateTime', 
+                    'totalCapacity', 'availableCapacity', 'price', 'category', 'status']
+      });
+
+      console.log(`📊 Found ${count} events`);
+
+      return {
+        events: rows,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(count / limit),
+          totalEvents: count
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error fetching events:', error);
+      throw error;
+    }
   }
 
   // Get single event details
@@ -69,15 +76,22 @@ class EventService {
   }
 
   // Admin: Create new event
-  async createEvent(eventData, adminId) {
-    const event = await Event.create({
-      ...eventData,
-      availableCapacity: eventData.totalCapacity,
-      createdBy: adminId,
-      status: eventData.status || 'draft' // Use provided status or default to draft
-    });
+  async createEvent(eventData, userId) {
+    try {
+      // Always set status to published for now (remove environment check)
+      const event = await Event.create({
+        ...eventData,
+        status: 'published',  // Force published status
+        createdBy: userId,
+        availableCapacity: eventData.totalCapacity
+      });
 
-    return await this.getAdminEventById(event.id);
+      console.log(`✅ Event created: ${event.id}, Status: ${event.status}`);
+      return event;
+    } catch (error) {
+      console.error('❌ Event creation failed:', error);
+      throw error;
+    }
   }
 
   // Admin: Update event
