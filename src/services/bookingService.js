@@ -1,5 +1,5 @@
 const { Booking, Event, User, sequelize } = require('../models');
-// const redisClient = require('../config/redis');
+const { Op, Transaction } = require('sequelize');
 
 class BookingService {
   constructor() {
@@ -31,10 +31,9 @@ class BookingService {
 
   // Enhanced booking processing with stronger locking
   async processBookingJobWithStrongLock(userId, eventId, quantity, priority = false) {
-    // Skip Redis locking for now, use database transaction only
     try {
       const result = await sequelize.transaction({
-        isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE
+        isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE
       }, async (transaction) => {
         
         const event = await Event.findByPk(eventId, {
