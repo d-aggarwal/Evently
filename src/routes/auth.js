@@ -23,7 +23,7 @@ router.post('/login',
 // Development only - Create admin user
 router.post('/create-admin',
   authLimiter,
-  validate(authValidation.register),
+  validate(authValidation.createAdmin),  // Update this line
   authController.createAdmin
 );
 

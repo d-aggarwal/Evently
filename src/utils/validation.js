@@ -9,6 +9,15 @@ const authValidation = {
     confirmPassword: Joi.string().valid(Joi.ref('password')).required()
   }),
 
+  createAdmin: Joi.object({
+    email: Joi.string().email().required(),
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
+    password: Joi.string().min(6).required(),
+    confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
+    adminToken: Joi.string().required()  // Add this line
+  }),
+
   login: Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().required()
