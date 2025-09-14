@@ -1,26 +1,14 @@
 {
   "name": "evently-backend",
   "version": "1.0.0",
-  "description": "Scalable event booking platform backend",
+  "description": "Event booking platform backend",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
     "db:migrate": "npx sequelize-cli db:migrate",
-    "db:seed": "npx sequelize-cli db:seed:all",
-    "cluster:start": "pm2 start ecosystem.config.js",
-    "cluster:stop": "pm2 stop evently-backend",
-    "cluster:restart": "pm2 restart evently-backend",
-    "cluster:reload": "pm2 reload evently-backend",
-    "cluster:logs": "pm2 logs evently-backend",
-    "cluster:status": "pm2 status",
-    "cluster:manual": "node start-cluster.js",
-    "test:cluster": "node -e \"console.log('Testing cluster...'); [3000,3001,3002,3003].forEach(port => { require('http').get('http://localhost:'+port+'/api/health', res => console.log('Port', port, 'Status:', res.statusCode)).on('error', () => console.log('Port', port, 'OFFLINE')); });\"",
-    "build": "echo 'Build completed'",
-    "start:production": "NODE_ENV=production node src/app.js",
-    "deploy": "npm run db:migrate && npm run start:production",
-    "postinstall": "npx sequelize-cli db:migrate"
+    "db:seed": "npx sequelize-cli db:seed:all"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -36,9 +24,8 @@
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
-    "pm2": "^5.3.0",
     "sequelize": "^6.32.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "jest": "^29.6.2",
@@ -47,7 +34,7 @@
     "supertest": "^6.3.3"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=18.0.0"
   }
 }
+
