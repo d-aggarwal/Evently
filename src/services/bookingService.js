@@ -17,11 +17,10 @@ class BookingService {
   async createBooking(userId, eventId, quantity) {
     try {
       const result = await sequelize.transaction({
-        isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE
+        isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED
       }, async (transaction) => {
         
         const event = await Event.findByPk(eventId, {
-          lock: transaction.LOCK.UPDATE,
           transaction
         });
 
@@ -99,6 +98,7 @@ class BookingService {
 
       return result;
     } catch (error) {
+      console.error('Booking error:', error);
       throw error;
     }
   }
