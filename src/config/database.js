@@ -39,14 +39,17 @@ const config = {
     logging: false
   },
   production: {
-    use_env_variable: 'DATABASE_URL',
+    username: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     dialectOptions: {
       ssl: {
         require: true,
         rejectUnauthorized: false
-      },
-      connectTimeout: 30000
+      }
     },
     pool: {
       max: 5,
@@ -59,16 +62,28 @@ const config = {
 };
 
 const env = process.env.NODE_ENV || 'development';
-const sequelize = new Sequelize(config[env]);
 
-// Add connection error handling
-sequelize.authenticate()
-  .then(() => {
-    console.log('Database connection established successfully.');
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
+let sequelize;
+if (env === 'production' && process.env.DATABASE_URL) {
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    },
+    logging: false
   });
+} else {
+  sequelize = new Sequelize(config[env]);
+}
 
 // Export both for Sequelize CLI and application use
 module.exports = config;
