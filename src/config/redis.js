@@ -11,15 +11,16 @@ class RedisClient {
       return this.client;
     }
 
-    // Production configuration (Render)
     if (process.env.NODE_ENV === 'production') {
-      this.client = new Redis(process.env.REDIS_URL, {
-        tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+      // Upstash Redis configuration
+      this.client = new Redis(process.env.UPSTASH_REDIS_URL, {
+        tls: { rejectUnauthorized: false },
+        token: process.env.UPSTASH_REDIS_TOKEN,
         maxRetriesPerRequest: 5,
-        enableReadyCheck: true
+        retryStrategy: (times) => Math.min(times * 50, 2000)
       });
     } else {
-      // Development configuration
+      // Local Redis configuration
       this.client = new Redis({
         host: process.env.REDIS_HOST,
         port: process.env.REDIS_PORT,
