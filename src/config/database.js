@@ -11,11 +11,14 @@ const config = {
     dialect: 'postgres',
     pool: {
       max: 20,
-      min: 5,
-      acquire: 30000,
+      min: 0,
+      acquire: 60000,
       idle: 10000
     },
-    logging: process.env.NODE_ENV === 'development' ? console.log : false
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    retry: {
+      max: 3
+    }
   },
   test: {
     username: process.env.DB_USER || 'postgres',

@@ -1,4 +1,4 @@
-const { Event, User } = require('../models');
+const { Event, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 class EventService {
@@ -55,24 +55,33 @@ class EventService {
 
   // Get single event details
   async getEventById(eventId) {
-    const event = await Event.findOne({
-      where: { 
-        id: eventId,
-        status: 'published',
-        dateTime: { [Op.gte]: new Date() }
-      },
-      include: [{
-        model: User,
-        as: 'creator',
-        attributes: ['firstName', 'lastName']
-      }]
-    });
+    try {
+      const event = await Event.findOne({
+        where: { 
+          id: eventId,
+          status: 'published',
+          dateTime: { [Op.gte]: new Date() }
+        },
+        include: [{
+          model: User,
+          as: 'creator',
+          attributes: ['firstName', 'lastName']
+        }],
+        lock: true // Add pessimistic locking
+      });
 
-    if (!event) {
-      throw new Error('Event not found');
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      return event;
+    } catch (error) {
+      console.error('Error fetching event:', {
+        eventId,
+        errorMessage: error.message
+      });
+      throw error;
     }
-
-    return event;
   }
 
   // Admin: Create new event
@@ -179,6 +188,54 @@ class EventService {
     }
 
     return event;
+  }
+
+  // Add new method for handling bookings with proper transaction
+  async bookEvent(eventId, userId, tickets) {
+    let transaction;
+    try {
+      transaction = await sequelize.transaction({
+        isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.SERIALIZABLE
+      });
+
+      const event = await Event.findByPk(eventId, {
+        lock: transaction.LOCK.UPDATE,
+        transaction,
+      });
+
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      if (event.availableCapacity < tickets) {
+        throw new Error('Not enough tickets available');
+      }
+
+      // Update available capacity
+      await event.update({
+        availableCapacity: event.availableCapacity - tickets
+      }, { transaction });
+
+      await transaction.commit();
+      return event;
+
+    } catch (error) {
+      if (transaction) await transaction.rollback();
+      
+      console.error('Booking error:', {
+        eventId,
+        userId,
+        tickets,
+        errorMessage: error.message,
+        stack: error.stack
+      });
+
+      if (error.name === 'SequelizeConnectionError') {
+        throw new Error('Database connection error, please try again');
+      }
+      
+      throw error;
+    }
   }
 }
 
