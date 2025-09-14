@@ -16,7 +16,7 @@ A scalable event booking platform that handles concurrent ticket bookings, preve
 - User engagement metrics and popular events insights
 - Waitlist management and monitoring
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Backend**: Node.js + Express.js
 - **Database**: PostgreSQL with Sequelize ORM
@@ -25,7 +25,7 @@ A scalable event booking platform that handles concurrent ticket bookings, preve
 - **Security**: Helmet, CORS, Rate limiting
 - **Caching**: Redis for distributed operations
 
-## ⚡ Setup
+## Setup
 
 1. **Clone and install dependencies:**
 ```bash
