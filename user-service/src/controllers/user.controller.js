@@ -1,25 +1,34 @@
 import {asyncHandler} from "../utils/asyncHandler.js";
 import  {ApiError} from "../utils/ApiError.js";
 import {ApiResponse} from  "../utils/ApiResponse.js";
-import {User} from "../models/user.model.js";
-import jwt from "jsonwebtoken"
+import {
+    hashPassword,
+    isPasswordCorrect,
+} from "../utils/password.js";
+import {prisma} from "../utils/prisma.js";
+import {generateAccessToken} from "../utils/jwt.js"
 
-const generateAccessAndRefereshTokens = async(userId) =>{
+
+const generateAccessTokenForUser = async (userId) => {
     try {
-        const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = user.generateRefreshToken()
+        const user = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+        });
 
-        user.refreshToken = refreshToken
-        await user.save({ validateBeforeSave: false })
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
 
-        return {accessToken, refreshToken}
-
-
+        return generateAccessToken(user);
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+        throw new ApiError(
+            500,
+            "Something went wrong while generating access token"
+        );
     }
-}
+};
 
 
 const registerUser = asyncHandler(async(req,res) => {
@@ -33,34 +42,46 @@ const registerUser = asyncHandler(async(req,res) => {
   // check for user creation
   //return response
 
-  const {fullName, email, username, password } = req.body
+  const {firstName, email, password } = req.body
   //console.log("email: ", email);
 
   if (
-      [fullName, email, username, password].some((field) => field?.trim() === "")
+      [firstName, email, password].some((field) => field?.trim() === "")
   ) {
       throw new ApiError(400, "All fields are required")
   }
 
-  const existedUser = await User.findOne({
-      $or: [{ username }, { email }]
-  })
+ const existedUser = await prisma.user.findFirst({
+    where: {
+        OR: [
+            { email }
+        ]
+    }
+});
 
   if (existedUser) {
-      throw new ApiError(409, "User with email or username already exists")
+      throw new ApiError(409, "User with email already exists")
   }
  
 
-  const user = await User.create({
-      fullName,
-      email, 
-      password,
-      username: username.toLowerCase()
-  })
+  const hashedPassword = await hashPassword(password);
 
-  const createdUser = await User.findById(user._id).select(
-      "-password -refreshToken"
-  )
+const user = await prisma.user.create({
+    data: {
+        firstName,
+        email,
+        password: hashedPassword,
+    },
+});
+
+  const createdUser = await prisma.user.findUnique({
+    where: {
+        id: user.id,
+    },
+    select: {
+        password: true,
+    },
+});
 
   if (!createdUser) {
       throw new ApiError(500, "Something went wrong while registering the user")
@@ -80,36 +101,46 @@ const loginUser = asyncHandler(async (req, res) =>{
     //access and referesh token
     //send cookie
 
-    const {email, username, password} = req.body
+    const {email, password} = req.body
     console.log(email);
 
-    if (!username && !email) {
-        throw new ApiError(400, "username or email is required")
+    if (!email) {
+        throw new ApiError(400, "email is required")
     }
-    
-    // Here is an alternative of above code based on logic discussed in video:
-    // if (!(username || email)) {
-    //     throw new ApiError(400, "username or email is required")
-        
-    // }
 
-    const user = await User.findOne({
-        $or: [{username}, {email}]
-    })
+    const user = await prisma.user.findFirst({
+    where: {
+        OR: [
+            { email }
+        ]
+    }
+});
 
     if (!user) {
         throw new ApiError(404, "User does not exist")
     }
 
-   const isPasswordValid = await user.isPasswordCorrect(password)
+   const isPasswordValid = await isPasswordCorrect(
+    password,
+    user.password
+);
 
    if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials")
     }
 
-   const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+   const accessToken =
+    await generateAccessTokenForUser(user.id);
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser =
+    await prisma.user.findUnique({
+        where: {
+            id: user.id,
+        },
+        select: {
+            password: true,
+        },
+    });
 
     const options = {
         httpOnly: true,
@@ -119,12 +150,11 @@ const loginUser = asyncHandler(async (req, res) =>{
     return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
     .json(
         new ApiResponse(
             200, 
             {
-                user: loggedInUser, accessToken, refreshToken
+                user: loggedInUser, accessToken
             },
             "User logged In Successfully"
         )
@@ -133,17 +163,6 @@ const loginUser = asyncHandler(async (req, res) =>{
 })
 
 const logoutUser = asyncHandler(async(req, res) => {
-    await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $unset: {
-                refreshToken: 1 // this removes the field from document
-            }
-        },
-        {
-            new: true
-        }
-    )
 
     const options = {
         httpOnly: true,
@@ -153,56 +172,7 @@ const logoutUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
     .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logged Out"))
-})
-
-const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
-
-    if (!incomingRefreshToken) {
-        throw new ApiError(401, "unauthorized request")
-    }
-
-    try {
-        const decodedToken = jwt.verify(
-            incomingRefreshToken,
-            process.env.REFRESH_TOKEN_SECRET
-        )
-    
-        const user = await User.findById(decodedToken?._id)
-    
-        if (!user) {
-            throw new ApiError(401, "Invalid refresh token")
-        }
-    
-        if (incomingRefreshToken !== user?.refreshToken) {
-            throw new ApiError(401, "Refresh token is expired or used")
-            
-        }
-    
-        const options = {
-            httpOnly: true,
-            secure: true
-        }
-    
-        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
-    
-        return res
-        .status(200)
-        .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", newRefreshToken, options)
-        .json(
-            new ApiResponse(
-                200, 
-                {accessToken, refreshToken: newRefreshToken},
-                "Access token refreshed"
-            )
-        )
-    } catch (error) {
-        throw new ApiError(401, error?.message || "Invalid refresh token")
-    }
-
 })
 
 const changeCurrentPassword = asyncHandler(async(req, res) => {
@@ -210,15 +180,29 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
 
     
 
-    const user = await User.findById(req.user?._id)
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    const user = await prisma.user.findUnique({
+    where: {
+        id: req.user.id,
+    },
+});
+    const validPassword =
+    await isPasswordCorrect(
+        oldPassword,
+        user.password
+    );
 
     if (!isPasswordCorrect) {
         throw new ApiError(400, "Invalid old password")
     }
 
-    user.password = newPassword
-    await user.save({validateBeforeSave: false})
+   await prisma.user.update({
+    where: {
+        id: req.user.id,
+    },
+    data: {
+        password: await hashPassword(newPassword),
+    },
+});
 
     return res
     .status(200)
@@ -236,37 +220,11 @@ const getCurrentUser = asyncHandler(async(req, res) => {
     ))
 })
 
-const updateAccountDetails = asyncHandler(async(req, res) => {
-    const {fullName, email} = req.body
-
-    if (!fullName || !email) {
-        throw new ApiError(400, "All fields are required")
-    }
-
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                fullName,
-                email: email
-            }
-        },
-        {new: true}
-        
-    ).select("-password")
-
-    return res
-    .status(200)
-    .json(new ApiResponse(200, user, "Account details updated successfully"))
-});
-
 
 export  {
     registerUser
     , loginUser
     , logoutUser
-    , refreshAccessToken
     , changeCurrentPassword,
     getCurrentUser,
-    updateAccountDetails,
 };
