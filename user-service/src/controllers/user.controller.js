@@ -7,6 +7,8 @@ import {
 } from "../utils/password.js";
 import {prisma} from "../utils/prisma.js";
 import {generateAccessToken} from "../utils/jwt.js"
+import notificationProducer from "../kafka/producer/notification.producer.js";
+import logger from "../utils/logger.js";
 
 
 const generateAccessTokenForUser = async (userId) => {
@@ -74,21 +76,21 @@ const user = await prisma.user.create({
     },
 });
 
-  const createdUser = await prisma.user.findUnique({
-    where: {
-        id: user.id,
-    },
-    select: {
-        password: true,
-    },
-});
-
-  if (!createdUser) {
+  if (!user) {
       throw new ApiError(500, "Something went wrong while registering the user")
   }
 
+  await notificationProducer.sendWelcomeEmail(
+        user.email,
+        user.firstName
+   );
+
+  logger.info(`Welcome email queued for ${user.email}`);
+
+  const {password: _, ...userResponse} = user;
+
   return res.status(201).json(
-      new ApiResponse(200, createdUser, "User registered Successfully")
+      new ApiResponse(200, userResponse, "User registered Successfully")
   )
 
 })
