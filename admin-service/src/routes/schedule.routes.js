@@ -1,5 +1,5 @@
 import { Router } from "express";
-import {createTrain, createRoute} from "../controllers/train.controller.js";
+import {createSchedule} from "../controllers/schedule.controller.js";
 // import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -7,8 +7,7 @@ const router = Router();
 
 //secured routes
 //need to be admin to access these routes, yet to implement role based access control
-router.route("/train").post(createTrain);
-router.route("/route").post(createRoute);
+router.route("/schedule").post(createSchedule);
 
 
 export default router;

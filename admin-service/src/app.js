@@ -32,13 +32,13 @@ app.use((req, res, next) => {
 // import userRouter from './routes/user.routes.js'
 import stationRouter from './routes/station.routes.js'
 import trainRouter from './routes/train.routes.js'
-
+import ScheduleRouter from './routes/schedule.routes.js'
 
 
 
 // app.use("/users", userRouter)
 app.use("/admin/stations", stationRouter)
 app.use("/admin/trains", trainRouter)
-
+app.use("/admin/schedules", ScheduleRouter)
 
 export default app
