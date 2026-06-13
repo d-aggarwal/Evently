@@ -2,7 +2,7 @@ import winston from 'winston'
 
 const logger = winston.createLogger({
      level: process.env.LOG_LEVEL || 'info',
-     defaultMeta: {service: 'Notification-Service'},
+     defaultMeta: {service: 'Admin-Service'},
      format: winston.format.combine(
           winston.format.timestamp(),
           winston.format.printf(({level, message, timestamp, service, error, stack, ...meta}) =>{
