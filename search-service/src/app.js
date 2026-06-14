@@ -50,6 +50,11 @@ export { startServer };
 
 //routes import 
 // import userRouter from './routes/user.routes.js'
+import searchRouter from './routes/search.route.js'
+
+//routes
+app.use("/search", searchRouter)
+// app.use("/auth", authRouter)
 
 
 
