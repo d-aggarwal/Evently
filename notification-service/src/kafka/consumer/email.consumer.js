@@ -1,7 +1,7 @@
 import { consumer } from '../../utils/kafka.js';
 import emailService from '../../services/email.services.js';
 import logger from '../../utils/logger.js';
-import { KAFKA_TOPICS } from '../../../../shared//constants/kafka-topics.js';
+import { KAFKA_TOPICS } from '../../../../shared/constants/kafka-topics.js';
 
 class EmailConsumer {
      async start() {
