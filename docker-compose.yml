@@ -96,11 +96,9 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: postgresql://admin:eventlypass@postgres:5432/postgres
-      REDIS_URL: redis://:eventlypass@redis:6379
       KAFKA_BROKER: kafka:9092
     depends_on:
       - postgres
-      - redis
       - kafka
     networks:
       - evently-network
@@ -116,11 +114,9 @@ services:
     environment:
       PORT: 3002
       DATABASE_URL: postgresql://admin:eventlypass@postgres:5432/admin_service_database
-      REDIS_URL: redis://:eventlypass@redis:6379
       KAFKA_BROKER: kafka:9092
     depends_on:
       - postgres
-      - redis
       - kafka
     networks:
       - evently-network
