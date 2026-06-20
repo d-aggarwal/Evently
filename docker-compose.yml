@@ -15,33 +15,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - evently-network
-  
-  pgadmin: 
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "8081:80"
-    depends_on:
-      - postgres
-    networks:
-      - evently-network
-
-  redis:
-    image: redis/redis-stack:6.2.6-v19
-    container_name: redis
-    restart: always
-    environment:
-      REDIS_ARGS: "--requirepass eventlypass"
-    ports:
-      - "6379:6379"
-      - "8001:8001"
-    volumes:
-      - redis_data:/data
-    networks:
-      - evently-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -82,22 +55,6 @@ services:
     networks:
       - evently-network
 
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    restart: always
-    depends_on:
-      - kafka
-    ports:
-      - "8080:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: evently-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
-    networks:
-      - evently-network
-
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
     container_name: elasticsearch
@@ -110,19 +67,6 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
-    networks:
-      - evently-network
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.12.0
-    container_name: kibana
-    restart: always
-    depends_on:
-      - elasticsearch
-    ports:
-      - "5601:5601"
-    environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     networks:
       - evently-network
 
@@ -216,7 +160,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   zookeeper_data:
   zookeeper_logs:
   kafka_data:
