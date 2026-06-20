@@ -149,6 +149,8 @@ services:
     restart: always
     environment:
       KAFKA_BROKER: kafka:9092
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      MAIL_SEND: ${MAIL_SEND}
     depends_on:
       - kafka
     networks:
