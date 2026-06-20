@@ -9,6 +9,8 @@ RUN npm install
 COPY ./admin-service . 
 COPY ./shared /shared
 
+RUN npx prisma generate
+
 EXPOSE 3002
 
 CMD ["node", "src/index.js"]
