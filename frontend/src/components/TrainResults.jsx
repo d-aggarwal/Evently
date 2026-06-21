@@ -11,7 +11,7 @@ export default function TrainResults({ results, isLoading, error, hasSearched })
           <p className="state-message__title" style={{ marginTop: '16px' }}>
             Searching trains…
           </p>
-          <p className="state-message__desc">Finding the best routes for you</p>
+          <p className="state-message__desc">Finding the best route for you</p>
         </div>
       </div>
     );
